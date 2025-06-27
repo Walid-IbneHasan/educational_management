@@ -53,7 +53,7 @@ def send_invitation(identifier, invitation_token, role, institution_name):
             raise ValueError(f"Email sending failed: {str(e)}")
     else:
         # Send invitation via SMS
-        message = f"(Tutoria) You are invited to join {institution_name} as a {role}. Accept here: {invitation_link}. Expires in 7 days."
+        message = f"(educational_management) You are invited to join {institution_name} as a {role}. Accept here: {invitation_link}. Expires in 7 days."
         response = sms_api(identifier, message)
         if "error" in response:
             logger.error(f"SMS sending failed for {identifier}: {response['error']}")

@@ -6,11 +6,11 @@ from rest_framework import permissions
 
 schema_view = get_schema_view(
     openapi.Info(
-        title="Tutoria  API",
+        title="Educational Management  API",
         default_version="v1",
         description="""
 
-        The Tutoria Quiz System API provides a comprehensive platform for managing educational institutions, curriculum structures, quizzes, and quiz attempts. It supports global and local curriculum hierarchies, quiz question banks, quiz creation, student participation, teacher grading, and user enrollments. The API uses token-based authentication and integrates with a frontend application for seamless user interaction.
+        The educational_management Quiz System API provides a comprehensive platform for managing educational institutions, curriculum structures, quizzes, and quiz attempts. It supports global and local curriculum hierarchies, quiz question banks, quiz creation, student participation, teacher grading, and user enrollments. The API uses token-based authentication and integrates with a frontend application for seamless user interaction.
 
         ## System Overview
         - **Institution App**: Manages institutions, their curriculum structure, and user enrollments.
@@ -993,7 +993,7 @@ schema_view = get_schema_view(
           
           
         ### Attendance API Workflow
-        The attendance API manages student attendance records for the Tutoria Attendance System, aligned with the provided models, serializers, views, and URLs.
+        The attendance API manages student attendance records for the educational_management Attendance System, aligned with the provided models, serializers, views, and URLs.
         
         #### GET Request REQUIREMENTS:
         - **GET THE ENROLLED CURRICULUM TRACKS OF THE TEACHER**
@@ -1110,7 +1110,7 @@ schema_view = get_schema_view(
         
         ### Quiz API Workflow
 
-        The quiz API manages global questions, quiz containers, attempts, and grading for the Tutoria Quiz System, aligned with the provided models, serializers, views, and URLs.
+        The quiz API manages global questions, quiz containers, attempts, and grading for the educational_management Quiz System, aligned with the provided models, serializers, views, and URLs.
 
         #### 15. Create a Global Quiz Question (MCQ)
         - **Purpose**: Add an MCQ question to the global question pool.
@@ -2121,8 +2121,8 @@ schema_view = get_schema_view(
           
 
         """,
-        terms_of_service="https://www.tutoria.com/terms/",
-        contact=openapi.Contact(email="support@tutoria.com"),
+        terms_of_service="https://www.educational_management.com/terms/",
+        contact=openapi.Contact(email="support@educational_management.com"),
         license=openapi.License(name="MIT License"),
     ),
     public=True,

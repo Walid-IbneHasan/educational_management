@@ -12,7 +12,7 @@ services:
              python manage.py makemigrations &&
              python manage.py migrate &&
              python manage.py collectstatic --noinput &&
-             gunicorn tutoria.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+             gunicorn educational_management.wsgi:application --bind 0.0.0.0:8000 --workers 3"
     volumes:
       - .:/app
       - static_volume:/app/static
@@ -24,7 +24,7 @@ services:
       - rabbitmq
       - mongo
     networks:
-      - tutoria-network
+      - educational_management-network
     expose:
       - 8000
     ports:
@@ -43,7 +43,7 @@ services:
     env_file:
       - .env
     networks:
-      - tutoria-network
+      - educational_management-network
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
@@ -62,7 +62,7 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - tutoria-network
+      - educational_management-network
     expose:
       - 6379
     deploy:
@@ -79,7 +79,7 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
-      - tutoria-network
+      - educational_management-network
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
@@ -108,7 +108,7 @@ services:
     volumes:
       - mongo_data:/data/db
     networks:
-      - tutoria-network
+      - educational_management-network
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD}
@@ -127,7 +127,7 @@ services:
     command: >
       sh -c "/wait-for-it.sh redis:6379 &&
              /wait-for-it.sh rabbitmq:5672 &&
-             celery -A tutoria worker --loglevel=info --concurrency=2"
+             celery -A educational_management worker --loglevel=info --concurrency=2"
     volumes:
       - .:/app
     env_file:
@@ -136,7 +136,7 @@ services:
       - redis
       - rabbitmq
     networks:
-      - tutoria-network
+      - educational_management-network
     deploy:
       resources:
         limits:
@@ -150,7 +150,7 @@ services:
     command: >
       sh -c "/wait-for-it.sh redis:6379 &&
              /wait-for-it.sh rabbitmq:5672 &&
-             celery -A tutoria beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+             celery -A educational_management beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
     volumes:
       - .:/app
     env_file:
@@ -159,7 +159,7 @@ services:
       - redis
       - rabbitmq
     networks:
-      - tutoria-network
+      - educational_management-network
     deploy:
       resources:
         limits:
@@ -175,5 +175,5 @@ volumes:
   media_volume:
 
 networks:
-  tutoria-network:
+  educational_management-network:
     driver: bridge

@@ -53,7 +53,7 @@ def send_otp(identifier, otp, otp_for="account verification"):
 
     if "@" in identifier:
         # Send OTP via email
-        subject = "Your Tutoria OTP"
+        subject = "Your educational_management OTP"
         message = render_to_string(
             "otp_email.html",
             {
@@ -76,7 +76,7 @@ def send_otp(identifier, otp, otp_for="account verification"):
             raise ValueError(f"Email sending failed: {str(e)}")
     else:
         # Send OTP via SMS
-        message = f"(Tutoria) Your OTP for {otp_for} is {otp}. It expires in {settings.OTP_EXPIRY_TIME // 60} minutes. Do not share this OTP."
+        message = f"(educational_management) Your OTP for {otp_for} is {otp}. It expires in {settings.OTP_EXPIRY_TIME // 60} minutes. Do not share this OTP."
         response = sms_api(identifier, message)
         if "error" in response:
             logger.error(f"SMS sending failed for {identifier}: {response['error']}")

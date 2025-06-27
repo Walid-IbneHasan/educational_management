@@ -52,7 +52,6 @@ INSTALLED_APPS = [
     "exam",
     "result",
     "scholarship",
-
 ]
 
 MIDDLEWARE = [
@@ -67,7 +66,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
 ]
 
-ROOT_URLCONF = "tutoria.urls"
+ROOT_URLCONF = "educational_management.urls"
 
 TEMPLATES = [
     {
@@ -87,7 +86,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "tutoria.wsgi.application"
+WSGI_APPLICATION = "educational_management.wsgi.application"
 
 
 # Database
@@ -116,7 +115,7 @@ else:
 
 
 # mongo_client = MongoClient(os.getenv("MONGO_URI"))
-# mongo_db = mongo_client["tutoria_mongo"]
+# mongo_db = mongo_client["educational_management_mongo"]
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

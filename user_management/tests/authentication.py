@@ -295,7 +295,9 @@ class AuthenticationTests(APITestCase):
             self.assertIn("token", response.data)
             # Verify email was sent
             self.assertEqual(len(mail.outbox), 1)
-            self.assertEqual(mail.outbox[0].subject, "Tutoria Invitation")
+            self.assertEqual(
+                mail.outbox[0].subject, "educational_management Invitation"
+            )
             self.assertIn(
                 "http://localhost:8000/auth/invitations/accept/?token=",
                 mail.outbox[0].alternatives[0][0],
@@ -503,7 +505,9 @@ class AuthenticationTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["message"], "OTP sent to your email")
         self.assertEqual(len(mail.outbox), 1)
-        self.assertIn("Tutoria Password Reset OTP", mail.outbox[0].subject)
+        self.assertIn(
+            "educational_management Password Reset OTP", mail.outbox[0].subject
+        )
         self.assertIn(
             "Your OTP for password reset is:", mail.outbox[0].alternatives[0][0]
         )
