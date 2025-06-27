@@ -165,6 +165,25 @@ services:
         limits:
           cpus: '0.2'
           memory: 256M
+  nginx:
+    image: nginx:latest
+    restart: always
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf # Mount your Nginx config
+      - static_volume:/app/static # Volume for Django's collected static files
+      - media_volume:/app/media # Volume for Django's collected media files
+    ports:
+      - "80:80" # Expose HTTP to the host
+      # - "443:443" # Uncomment and configure for HTTPS later
+    depends_on:
+      - web # Nginx depends on the web service being available
+    networks:
+      - educational_management-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2' # Small CPU limit
+          memory: 128M # Small memory limit
 
 volumes:
   postgres_data:
