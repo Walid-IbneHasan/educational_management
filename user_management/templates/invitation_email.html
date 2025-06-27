@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Invitation to Join {{ institution_name }}</title>
+</head>
+<body>
+    <h2>Invitation to Join {{ institution_name }}</h2>
+    <p>You have been invited to join <strong>{{ institution_name }}</strong> as a <strong>{{ role }}</strong>.</p>
+    <p>Please click the link below to accept the invitation:</p>
+    <p><a href="{{ invitation_link }}">{{ invitation_link }}</a></p>
+    <p>This invitation is valid for {{ expiry_days }} days. If you do not accept within this period, the invitation will expire.</p>
+    <p>If you did not expect this invitation, please ignore this email.</p>
+    <p>Best regards,<br>Tutoria Team</p>
+</body>
+</html>
