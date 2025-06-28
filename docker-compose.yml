@@ -9,9 +9,6 @@ services:
       sh -c "/wait-for-it.sh redis:6379 &&
              /wait-for-it.sh mongo:27017 &&
              /wait-for-it.sh rabbitmq:5672 &&
-             python manage.py makemigrations &&
-             python manage.py migrate &&
-             python manage.py collectstatic --noinput &&
              gunicorn educational_management.wsgi:application --bind 0.0.0.0:8000 --workers 3"
     volumes:
       - .:/app
@@ -23,6 +20,7 @@ services:
       - redis
       - rabbitmq
       - mongo
+      - db
     networks:
       - educational_management-network
     expose:
@@ -34,6 +32,12 @@ services:
         limits:
           cpus: '1.0'
           memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"] # Checks your new endpoint
+      interval: 10s # Check every 10 seconds
+      timeout: 5s   # Fail if no response within 5 seconds
+      retries: 5    # Retry 5 times before marking as unhealthy
+      start_period: 30s # Give it 30 seconds to start up before checking
 
   db:
     image: postgres:15
@@ -175,8 +179,7 @@ services:
     ports:
       - "80:80" # Expose HTTP to the host
       # - "443:443" # Uncomment and configure for HTTPS later
-    depends_on:
-      - web # Nginx depends on the web service being available
+
     networks:
       - educational_management-network
     deploy:
@@ -184,6 +187,9 @@ services:
         limits:
           cpus: '0.2' # Small CPU limit
           memory: 128M # Small memory limit
+    depends_on:
+      web:
+        condition: service_healthy
 
 volumes:
   postgres_data:

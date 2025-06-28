@@ -6,10 +6,18 @@ from django.contrib import admin
 from django.conf import settings
 from django.conf.urls.static import static
 from educational_management.swagger import schema_view
+from django.http import HttpResponse
+from django.views.decorators.http import require_GET
+
+
+@require_GET
+def health_check(request):
+    return HttpResponse("OK", status=200)
 
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("health/", health_check), #For docker compose and nginx health check
     path("auth/", include("user_management.urls.authentication")),
     path("auth/", include("user_management.urls.admission_seeker")),
     path("bkash/", include("payment_management.urls.bkash")),
