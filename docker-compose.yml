@@ -9,7 +9,10 @@ services:
       sh -c "/wait-for-it.sh redis:6379 &&
              /wait-for-it.sh mongo:27017 &&
              /wait-for-it.sh rabbitmq:5672 &&
-             gunicorn educational_management.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+             python manage.py makemigrations &&
+             python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn educational_management.wsgi:application --bind 0.0.0.0:8000 --workers 1 --timeout 120"
     volumes:
       - .:/app
       - static_volume:/app/static
@@ -37,7 +40,7 @@ services:
       interval: 10s # Check every 10 seconds
       timeout: 5s   # Fail if no response within 5 seconds
       retries: 5    # Retry 5 times before marking as unhealthy
-      start_period: 30s # Give it 30 seconds to start up before checking
+      start_period: 60s # Give it 30 seconds to start up before checking
 
   db:
     image: postgres:15
