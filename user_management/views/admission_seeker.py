@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from institution.models import InstitutionInfo
 from user_management.models.admission_seeker import AdmissionRequest
 from user_management.models.authentication import Invitation, User
 from user_management.serializers.admission_seeker import (
@@ -34,7 +35,7 @@ class AdmissionRequestViewSet(viewsets.ModelViewSet):
         if not user.is_authenticated:
             return AdmissionRequest.objects.none()
         if user.is_institution:
-            institution = user.admin_institutions.first()
+            institution = InstitutionInfo.objects.filter(admin=user).first()
             if institution:
                 return self.queryset.filter(institution=institution)
         return self.queryset.filter(user=user)
