@@ -40,7 +40,7 @@ class MyInstitutionView(APIView):
         if not institution:
             return Response(
                 {"error": "No institution found for this user"},
-                status=status.HTTP_404_NOT_FOUND,
+                status=status.HTTP_200_OK,
             )
         serializer = InstitutionInfoSerializer(institution)
         return Response(serializer.data)
