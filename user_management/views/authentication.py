@@ -661,9 +661,7 @@ class UserInstitutionsViewSet(viewsets.ViewSet):
     def list(self, request):
         user = request.user
         institutions = InstitutionInfo.objects.filter(memberships__user=user).distinct()
-        serializer = InstitutionSerializer(
-            institutions, many=True
-        )
+        serializer = InstitutionSerializer(institutions, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -681,17 +679,40 @@ class InvitationViewSet(viewsets.ModelViewSet):
         if getattr(self, "swagger_fake_view", False):
             return Invitation.objects.none()
         user = self.request.user
+        logger.debug(
+            f"User: {user}, is_authenticated: {user.is_authenticated}, email: {user.email}, phone_number: {user.phone_number}"
+        )
+
+        if not user.is_authenticated:
+            logger.warning("Unauthenticated user attempted to access invitations")
+            return Invitation.objects.none()
+
         if user.is_institution:
             # Institution admins see only invitations from their institution
             institution = user.institution_info.first()
             if institution:
+                logger.debug(
+                    f"Institution admin accessing invitations for institution: {institution.id}"
+                )
                 return self.queryset.filter(institution=institution)
+            logger.warning(f"No institution found for admin user: {user.id}")
             return Invitation.objects.none()
         else:
-            # Students/teachers see invitations sent to their email or phone number
-            return self.queryset.filter(
-                models.Q(email=user.email) | models.Q(phone_number=user.phone_number)
+            # Non-institution users (including those with no role) see invitations sent to their email or phone number
+            if not user.email and not user.phone_number:
+                logger.warning(f"User {user.id} has neither email nor phone_number set")
+                return Invitation.objects.none()
+
+            query = models.Q()
+            if user.email:
+                query |= models.Q(email=user.email)
+            if user.phone_number:
+                query |= models.Q(phone_number=user.phone_number)
+
+            logger.debug(
+                f"Filtering invitations for user {user.id} with query: {query}"
             )
+            return self.queryset.filter(query)
 
     @swagger_auto_schema(
         operation_summary="Create an invitation",
