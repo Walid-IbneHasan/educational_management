@@ -430,15 +430,19 @@ class StudentEnrollmentViewSet(viewsets.ModelViewSet):
         except ValueError:
             raise ValidationError({"section_id": "Invalid UUID format for section ID."})
 
-        # Check if teacher is enrolled in the section
-        if (
-            not user.is_teacher
-            or not TeacherEnrollment.objects.filter(
-                user=user, section__id=section_id, is_active=True
-            ).exists()
+        # Check if user is institution admin or teacher enrolled in the section
+        institution = InstitutionInfo.objects.filter(admin=user).first()
+        if not (
+            (user.is_institution and institution)
+            or (
+                user.is_teacher
+                and TeacherEnrollment.objects.filter(
+                    user=user, section__id=section_id, is_active=True
+                ).exists()
+            )
         ):
             return Response(
-                {"detail": "You are not enrolled in this section or not authorized."},
+                {"detail": "You are not authorized to access this section."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -446,13 +450,41 @@ class StudentEnrollmentViewSet(viewsets.ModelViewSet):
         queryset = StudentEnrollment.objects.filter(
             section__id=section_id,
             is_active=True,
-            institution__in=InstitutionMembership.objects.filter(user=user).values(
-                "institution"
-            ),
         )
+        if user.is_institution and institution:
+            queryset = queryset.filter(institution=institution)
+        elif user.is_teacher:
+            queryset = queryset.filter(
+                institution__in=InstitutionMembership.objects.filter(user=user).values(
+                    "institution"
+                )
+            )
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+        # # Check if teacher is enrolled in the section
+        # if (
+        #     not user.is_teacher
+        #     or not TeacherEnrollment.objects.filter(
+        #         user=user, section__id=section_id, is_active=True
+        #     ).exists()
+        # ):
+        #     return Response(
+        #         {"detail": "You are not enrolled in this section or not authorized."},
+        #         status=status.HTTP_403_FORBIDDEN,
+        #     )
+
+        # Get student enrollments for the section
+        # queryset = StudentEnrollment.objects.filter(
+        #     section__id=section_id,
+        #     is_active=True,
+        #     institution__in=InstitutionMembership.objects.filter(user=user).values(
+        #         "institution"
+        #     ),
+        # )
+
+        # serializer = self.get_serializer(queryset, many=True)
+        # return Response(serializer.data)
 
 
 # TO GET THE CURRICULUM TRACKS, SECTIONS AND SUBJECTS FOR THE LOGGED IN USER
