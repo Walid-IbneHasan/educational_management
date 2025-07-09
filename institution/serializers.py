@@ -305,6 +305,12 @@ class SubjectSerializer(serializers.ModelSerializer):
     name_detail = serializers.SlugRelatedField(
         source="name", slug_field="name", read_only=True
     )
+    section = serializers.PrimaryKeyRelatedField(
+        source="stream.section", read_only=True
+    )
+    section_name = serializers.CharField(
+        source="stream.section.name", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = Subject
@@ -314,6 +320,8 @@ class SubjectSerializer(serializers.ModelSerializer):
             "stream_name",
             "name",
             "name_detail",
+            "section",
+            "section_name",
             "is_active",
             "order",
         ]
