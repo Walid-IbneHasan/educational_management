@@ -516,6 +516,15 @@ class TeacherEnrollmentSerializer(serializers.ModelSerializer):
     )
     first_name = serializers.CharField(source="user.first_name", read_only=True)
     last_name = serializers.CharField(source="user.last_name", read_only=True)
+    curriculum_track_names = serializers.SlugRelatedField(
+        source="curriculum_track", slug_field="name__name", read_only=True, many=True
+    )
+    section_names = serializers.SlugRelatedField(
+        source="section", slug_field="name", read_only=True, many=True
+    )
+    subject_names = serializers.SlugRelatedField(
+        source="subjects", slug_field="name__name", read_only=True, many=True
+    )
 
     class Meta:
         model = TeacherEnrollment
@@ -523,8 +532,11 @@ class TeacherEnrollmentSerializer(serializers.ModelSerializer):
             "id",
             "user",
             "curriculum_track",
+            "curriculum_track_names",
             "section",
+            "section_names",
             "subjects",
+            "subject_names",
             "is_active",
             "first_name",
             "last_name",
@@ -603,7 +615,11 @@ class StudentEnrollmentSerializer(serializers.ModelSerializer):
     curriculum_track = serializers.PrimaryKeyRelatedField(
         queryset=CurriculumTrack.objects.all()
     )
+    curriculum_track_name = serializers.CharField(
+        source="curriculum_track.name.name", read_only=True
+    )
     section = serializers.PrimaryKeyRelatedField(queryset=Section.objects.all())
+    section_name = serializers.CharField(source="section.name", read_only=True)
     first_name = serializers.CharField(source="user.first_name", read_only=True)
     last_name = serializers.CharField(source="user.last_name", read_only=True)
 
@@ -613,7 +629,9 @@ class StudentEnrollmentSerializer(serializers.ModelSerializer):
             "id",
             "user",
             "curriculum_track",
+            "curriculum_track_name",
             "section",
+            "section_name",
             "is_active",
             "first_name",
             "last_name",
