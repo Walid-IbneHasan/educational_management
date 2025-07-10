@@ -1004,7 +1004,11 @@ schema_view = get_schema_view(
         
         - **Endpoint**: `GET  /institution/my-sections/`
         
-        - **GET THE ENROLLED SUBJECTS OF THE TEACHER**
+        - **GET THE ENROLLED SUBJECTS OF THE TEACHER BY INSTITUTION ID**
+        
+        - **Endpoint**: `GET  /institution/my-subjects/by-institution/?institution_id=1915f7ee-43bc-4eb1-b4d2-a7afaf6de25f`
+        
+        - **GET THE ENROLLED SUBJECTS OF THE TEACHER
         
         - **Endpoint**: `GET  /institution/my-subjects/`
         

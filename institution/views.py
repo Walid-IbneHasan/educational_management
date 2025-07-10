@@ -462,29 +462,6 @@ class StudentEnrollmentViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
-        # # Check if teacher is enrolled in the section
-        # if (
-        #     not user.is_teacher
-        #     or not TeacherEnrollment.objects.filter(
-        #         user=user, section__id=section_id, is_active=True
-        #     ).exists()
-        # ):
-        #     return Response(
-        #         {"detail": "You are not enrolled in this section or not authorized."},
-        #         status=status.HTTP_403_FORBIDDEN,
-        #     )
-
-        # Get student enrollments for the section
-        # queryset = StudentEnrollment.objects.filter(
-        #     section__id=section_id,
-        #     is_active=True,
-        #     institution__in=InstitutionMembership.objects.filter(user=user).values(
-        #         "institution"
-        #     ),
-        # )
-
-        # serializer = self.get_serializer(queryset, many=True)
-        # return Response(serializer.data)
 
 
 # TO GET THE CURRICULUM TRACKS, SECTIONS AND SUBJECTS FOR THE LOGGED IN USER
@@ -555,6 +532,40 @@ class MySubjectViewSet(viewsets.ReadOnlyModelViewSet):
                 stream__section__student_enrollments__user=user,
                 stream__section__student_enrollments__is_active=True,
                 is_active=True,
+            ).distinct()
+        return Subject.objects.none()
+
+
+class MySubjectByInstitutionViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = SubjectSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        institution_id = self.request.query_params.get("institution_id")
+
+        if not institution_id:
+            raise ValidationError({"institution_id": "Institution ID is required."})
+        try:
+            UUID(institution_id)
+        except ValueError:
+            raise ValidationError(
+                {"institution_id": "Invalid UUID format for institution ID."}
+            )
+
+        if user.is_teacher:
+            return Subject.objects.filter(
+                teacher_enrollments__user=user,
+                teacher_enrollments__is_active=True,
+                is_active=True,
+                stream__curriculum_track__institution_info__id=institution_id,
+            ).distinct()
+        elif user.is_student:
+            return Subject.objects.filter(
+                stream__section__student_enrollments__user=user,
+                stream__section__student_enrollments__is_active=True,
+                is_active=True,
+                stream__curriculum_track__institution_info__id=institution_id,
             ).distinct()
         return Subject.objects.none()
 
