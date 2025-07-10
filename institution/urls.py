@@ -25,6 +25,7 @@ from .views import (
     MyCurriculumTrackViewSet,
     MySectionViewSet,
     MySubjectViewSet,
+    MySubjectByInstitutionViewSet,
 )
 
 urlpatterns = [
@@ -59,6 +60,11 @@ urlpatterns = [
         "my-subjects/",
         MySubjectViewSet.as_view({"get": "list"}),
         name="my-subject-list",
+    ),
+    path(
+        "my-subjects/by-institution/",
+        MySubjectByInstitutionViewSet.as_view({"get": "list"}),
+        name="my-subject-by-institution-list",
     ),
     path(
         "global-curriculum-tracks/",
