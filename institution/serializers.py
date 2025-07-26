@@ -311,6 +311,12 @@ class SubjectSerializer(serializers.ModelSerializer):
     section_name = serializers.CharField(
         source="stream.section.name", read_only=True, allow_null=True
     )
+    curriculum_track = serializers.PrimaryKeyRelatedField(
+        source="stream.curriculum_track", read_only=True
+    )
+    curriculum_track_name = serializers.CharField(
+        source="stream.curriculum_track.name.name", read_only=True
+    )
 
     class Meta:
         model = Subject
@@ -322,6 +328,8 @@ class SubjectSerializer(serializers.ModelSerializer):
             "name_detail",
             "section",
             "section_name",
+            "curriculum_track",
+            "curriculum_track_name",
             "is_active",
             "order",
         ]
