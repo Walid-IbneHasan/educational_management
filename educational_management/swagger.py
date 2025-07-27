@@ -644,7 +644,8 @@ schema_view = get_schema_view(
           
           - **Endpoint**: `GET /institution/modules/?subjects=<local_subject_id>`
           
-          - **Request**: `POST /institution/modules/`
+          - **Request**: `POST /institution/modules/?institution_id=33dcaa97-9d1d-4e64-a9ab-f6e9f7b05c67` FOR TEACHERS
+          - **Request**: `POST /institution/modules/` FOR INSTITUTION ADMIN
             ```json
             {
               "subject": "<subject_id>",
@@ -691,8 +692,9 @@ schema_view = get_schema_view(
           
           - **Endpoint**: `GET /institution/units/?modules=<local_module_id>`
           
-          - **Request**: `POST /institution/units/`
-          
+          - **Request**: `POST /institution/units/` FOR TEACHERS
+          - **Request**: `POST /institution/units/?institution_id=33dcaa97-9d1d-4e64-a9ab-f6e9f7b05c67` FOR INSTITUTION ADMIN
+
             ```json
             {
               "module": "<module_id>",
@@ -740,7 +742,8 @@ schema_view = get_schema_view(
           
           - **Endpoint**: `GET /institution/lessons/?units=<local_unit_id>`
           
-          - **Request**: `POST /institution/lessons/`
+          - **Request**: `POST /institution/lessons/`FOR INSTITUTION ADMIN
+          - **Request**: `POST /institution/lessons/?institution_id=33dcaa97-9d1d-4e64-a9ab-f6e9f7b05c67` FOR TEACHERS
             ```json
             {
               "unit": "<unit_id>",
@@ -788,7 +791,8 @@ schema_view = get_schema_view(
           
           - **Endpoint**: `GET /institution/micro-lessons/?lessons=<local_lesson_id>`
         
-          - **Request**: `POST /institution/micro-lessons/`
+          - **Request**: `POST /institution/micro-lessons/` FOR INSTITUTION ADMIN
+          - **Request**: `POST /institution/micro-lessons/?institution_id=33dcaa97-9d1d-4e64-a9ab-f6e9f7b05c67` FOR TEACHERS
             ```json
             {
               "lesson": "<lesson_id>",

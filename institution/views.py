@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from user_management.permissions.authentication import IsInstitutionAdmin
+from user_management.permissions.authentication import IsInstitutionAdmin, IsTeacher
 from .models import *
 from .serializers import *
 from rest_framework.exceptions import ValidationError
@@ -202,168 +202,472 @@ class SubjectViewSet(viewsets.ModelViewSet):
 
 class ModuleViewSet(viewsets.ModelViewSet):
     serializer_class = ModuleSerializer
-    permission_classes = [IsAuthenticated, IsInstitutionAdmin]
+    permission_classes = [IsAuthenticated, IsInstitutionAdmin | IsTeacher]
 
     def get_queryset(self):
-        institution = InstitutionInfo.objects.filter(admin=self.request.user).first()
-        if not institution:
-            return Module.objects.none()
-        queryset = Module.objects.filter(
-            subject__stream__curriculum_track__institution_info=institution
-        )
-        subject_id = self.request.query_params.get("subjects")
-        if subject_id:
-            try:
-                UUID(subject_id)  # Validate UUID format
-                if not Subject.objects.filter(
-                    id=subject_id,
-                    stream__curriculum_track__institution_info=institution,
+        user = self.request.user
+        if user.is_institution:
+            institution = InstitutionInfo.objects.filter(admin=user).first()
+            if not institution:
+                return Module.objects.none()
+            return Module.objects.filter(
+                subject__stream__curriculum_track__institution_info=institution
+            )
+        elif user.is_teacher:
+            institution_id = self.request.query_params.get("institution_id")
+            if institution_id:
+                try:
+                    UUID(institution_id)
+                except ValueError:
+                    raise ValidationError(
+                        {"institution_id": "Invalid UUID format for institution ID."}
+                    )
+                if not InstitutionMembership.objects.filter(
+                    user=user, institution__id=institution_id, role="teacher"
                 ).exists():
                     raise ValidationError(
-                        f"Subject with ID {subject_id} does not exist or does not belong to this institution."
+                        {"institution_id": "You are not enrolled in this institution."}
                     )
-                queryset = queryset.filter(subject__id=subject_id)
-            except ValueError:
-                raise ValidationError(
-                    f"Invalid UUID format for subject ID: {subject_id}"
-                )
-        return queryset
+                return Module.objects.filter(
+                    subject__teacher_enrollments__user=user,
+                    subject__teacher_enrollments__is_active=True,
+                    subject__stream__curriculum_track__institution_info__id=institution_id,
+                    is_active=True,
+                ).distinct()
+            return Module.objects.filter(
+                subject__teacher_enrollments__user=user,
+                subject__teacher_enrollments__is_active=True,
+                is_active=True,
+            ).distinct()
+        return Module.objects.none()
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        institution = InstitutionInfo.objects.filter(admin=self.request.user).first()
-        if institution:
-            context["institution"] = institution
+        user = self.request.user
+        if user.is_institution:
+            institution = InstitutionInfo.objects.filter(admin=user).first()
+            if institution:
+                context["institution"] = institution
+        elif user.is_teacher:
+            institution_id = self.request.query_params.get("institution_id")
+            if institution_id:
+                try:
+                    UUID(institution_id)
+                    institution = InstitutionInfo.objects.filter(
+                        id=institution_id
+                    ).first()
+                    if (
+                        institution
+                        and InstitutionMembership.objects.filter(
+                            user=user, institution=institution, role="teacher"
+                        ).exists()
+                    ):
+                        context["institution"] = institution
+                    else:
+                        raise ValidationError(
+                            {
+                                "institution_id": "You are not enrolled in this institution."
+                            }
+                        )
+                except ValueError:
+                    raise ValidationError(
+                        {"institution_id": "Invalid UUID format for institution ID."}
+                    )
         return context
 
     def perform_create(self, serializer):
-        institution = InstitutionInfo.objects.filter(admin=self.request.user).first()
-        if not institution:
-            raise ValidationError("No institution found for this admin.")
-        serializer.save()
+        user = self.request.user
+        if user.is_institution:
+            institution = InstitutionInfo.objects.filter(admin=user).first()
+            if not institution:
+                raise ValidationError("No institution found for this admin.")
+            serializer.save()
+        elif user.is_teacher:
+            institution_id = self.request.query_params.get("institution_id")
+            if not institution_id:
+                raise ValidationError(
+                    {"institution_id": "Institution ID is required for teachers."}
+                )
+            try:
+                UUID(institution_id)
+            except ValueError:
+                raise ValidationError(
+                    {"institution_id": "Invalid UUID format for institution ID."}
+                )
+            institution = InstitutionInfo.objects.filter(id=institution_id).first()
+            if (
+                not institution
+                or not InstitutionMembership.objects.filter(
+                    user=user, institution=institution, role="teacher"
+                ).exists()
+            ):
+                raise ValidationError(
+                    {"institution_id": "You are not enrolled in this institution."}
+                )
+            subject = serializer.validated_data["subject"]
+            if not TeacherEnrollment.objects.filter(
+                user=user, subjects=subject, is_active=True
+            ).exists():
+                raise ValidationError("You are not enrolled to teach this subject.")
+            if subject.stream.curriculum_track.institution_info != institution:
+                raise ValidationError(
+                    "Subject does not belong to the specified institution."
+                )
+            serializer.save()
 
 
 class UnitViewSet(viewsets.ModelViewSet):
     serializer_class = UnitSerializer
-    permission_classes = [IsAuthenticated, IsInstitutionAdmin]
+    permission_classes = [IsAuthenticated, IsInstitutionAdmin | IsTeacher]
 
     def get_queryset(self):
-        institution = InstitutionInfo.objects.filter(admin=self.request.user).first()
-        if not institution:
-            return Unit.objects.none()
-        queryset = Unit.objects.filter(
-            module__subject__stream__curriculum_track__institution_info=institution
-        )
-        module_id = self.request.query_params.get("modules")
-        if module_id:
-            try:
-                UUID(module_id)  # Validate UUID format
-                if not Module.objects.filter(
-                    id=module_id,
-                    subject__stream__curriculum_track__institution_info=institution,
+        user = self.request.user
+        if user.is_institution:
+            institution = InstitutionInfo.objects.filter(admin=user).first()
+            if not institution:
+                return Unit.objects.none()
+            return Unit.objects.filter(
+                module__subject__stream__curriculum_track__institution_info=institution
+            )
+        elif user.is_teacher:
+            institution_id = self.request.query_params.get("institution_id")
+            if institution_id:
+                try:
+                    UUID(institution_id)
+                except ValueError:
+                    raise ValidationError(
+                        {"institution_id": "Invalid UUID format for institution ID."}
+                    )
+                if not InstitutionMembership.objects.filter(
+                    user=user, institution__id=institution_id, role="teacher"
                 ).exists():
                     raise ValidationError(
-                        f"Module with ID {module_id} does not exist or does not belong to this institution."
+                        {"institution_id": "You are not enrolled in this institution."}
                     )
-                queryset = queryset.filter(module__id=module_id)
-            except ValueError:
-                raise ValidationError(f"Invalid UUID format for module ID: {module_id}")
-        return queryset
+                return Unit.objects.filter(
+                    module__subject__teacher_enrollments__user=user,
+                    module__subject__teacher_enrollments__is_active=True,
+                    module__subject__stream__curriculum_track__institution_info__id=institution_id,
+                    is_active=True,
+                ).distinct()
+            return Unit.objects.filter(
+                module__subject__teacher_enrollments__user=user,
+                module__subject__teacher_enrollments__is_active=True,
+                is_active=True,
+            ).distinct()
+        return Unit.objects.none()
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        institution = InstitutionInfo.objects.filter(admin=self.request.user).first()
-        if institution:
-            context["institution"] = institution
+        user = self.request.user
+        if user.is_institution:
+            institution = InstitutionInfo.objects.filter(admin=user).first()
+            if institution:
+                context["institution"] = institution
+        elif user.is_teacher:
+            institution_id = self.request.query_params.get("institution_id")
+            if institution_id:
+                try:
+                    UUID(institution_id)
+                    institution = InstitutionInfo.objects.filter(
+                        id=institution_id
+                    ).first()
+                    if (
+                        institution
+                        and InstitutionMembership.objects.filter(
+                            user=user, institution=institution, role="teacher"
+                        ).exists()
+                    ):
+                        context["institution"] = institution
+                    else:
+                        raise ValidationError(
+                            {
+                                "institution_id": "You are not enrolled in this institution."
+                            }
+                        )
+                except ValueError:
+                    raise ValidationError(
+                        {"institution_id": "Invalid UUID format for institution ID."}
+                    )
         return context
 
     def perform_create(self, serializer):
-        institution = InstitutionInfo.objects.filter(admin=self.request.user).first()
-        if not institution:
-            raise ValidationError("No institution found for this admin.")
-        serializer.save()
+        user = self.request.user
+        if user.is_institution:
+            institution = InstitutionInfo.objects.filter(admin=user).first()
+            if not institution:
+                raise ValidationError("No institution found for this admin.")
+            serializer.save()
+        elif user.is_teacher:
+            institution_id = self.request.query_params.get("institution_id")
+            if not institution_id:
+                raise ValidationError(
+                    {"institution_id": "Institution ID is required for teachers."}
+                )
+            try:
+                UUID(institution_id)
+            except ValueError:
+                raise ValidationError(
+                    {"institution_id": "Invalid UUID format for institution ID."}
+                )
+            institution = InstitutionInfo.objects.filter(id=institution_id).first()
+            if (
+                not institution
+                or not InstitutionMembership.objects.filter(
+                    user=user, institution=institution, role="teacher"
+                ).exists()
+            ):
+                raise ValidationError(
+                    {"institution_id": "You are not enrolled in this institution."}
+                )
+            module = serializer.validated_data["module"]
+            if not TeacherEnrollment.objects.filter(
+                user=user, subjects=module.subject, is_active=True
+            ).exists():
+                raise ValidationError("You are not enrolled to teach this subject.")
+            if module.subject.stream_curriculum_track.institution_info != institution:
+                raise ValidationError(
+                    "Module does not belong to the specified institution."
+                )
+            serializer.save()
 
 
 class LessonViewSet(viewsets.ModelViewSet):
     serializer_class = LessonSerializer
-    permission_classes = [IsAuthenticated, IsInstitutionAdmin]
+    permission_classes = [IsAuthenticated, IsInstitutionAdmin | IsTeacher]
 
     def get_queryset(self):
-        institution = InstitutionInfo.objects.filter(admin=self.request.user).first()
-        if not institution:
-            return Lesson.objects.none()
-        queryset = Lesson.objects.filter(
-            unit__module__subject__stream__curriculum_track__institution_info=institution
-        )
-        unit_id = self.request.query_params.get("units")
-        if unit_id:
-            try:
-                UUID(unit_id)  # Validate UUID format
-                if not Unit.objects.filter(
-                    id=unit_id,
-                    module__subject__stream__curriculum_track__institution_info=institution,
+        user = self.request.user
+        if user.is_institution:
+            institution = InstitutionInfo.objects.filter(admin=user).first()
+            if not institution:
+                return Lesson.objects.none()
+            return Lesson.objects.filter(
+                unit__module__subject__stream__curriculum_track__institution_info=institution
+            )
+        elif user.is_teacher:
+            institution_id = self.request.query_params.get("institution_id")
+            if institution_id:
+                try:
+                    UUID(institution_id)
+                except ValueError:
+                    raise ValidationError(
+                        {"institution_id": "Invalid UUID format for institution ID."}
+                    )
+                if not InstitutionMembership.objects.filter(
+                    user=user, institution__id=institution_id, role="teacher"
                 ).exists():
                     raise ValidationError(
-                        f"Unit with ID {unit_id} does not exist or does not belong to this institution."
+                        {"institution_id": "You are not enrolled in this institution."}
                     )
-                queryset = queryset.filter(unit__id=unit_id)
-            except ValueError:
-                raise ValidationError(f"Invalid UUID format for unit ID: {unit_id}")
-        return queryset
+                return Lesson.objects.filter(
+                    unit__module__subject__teacher_enrollments__user=user,
+                    unit__module__subject__teacher_enrollments__is_active=True,
+                    unit__module__subject__stream__curriculum_track__institution_info__id=institution_id,
+                    is_active=True,
+                ).distinct()
+            return Lesson.objects.filter(
+                unit__module__subject__teacher_enrollments__user=user,
+                unit__module__subject__teacher_enrollments__is_active=True,
+                is_active=True,
+            ).distinct()
+        return Lesson.objects.none()
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        institution = InstitutionInfo.objects.filter(admin=self.request.user).first()
-        if institution:
-            context["institution"] = institution
+        user = self.request.user
+        if user.is_institution:
+            institution = InstitutionInfo.objects.filter(admin=user).first()
+            if institution:
+                context["institution"] = institution
+        elif user.is_teacher:
+            institution_id = self.request.query_params.get("institution_id")
+            if institution_id:
+                try:
+                    UUID(institution_id)
+                    institution = InstitutionInfo.objects.filter(
+                        id=institution_id
+                    ).first()
+                    if (
+                        institution
+                        and InstitutionMembership.objects.filter(
+                            user=user, institution=institution, role="teacher"
+                        ).exists()
+                    ):
+                        context["institution"] = institution
+                    else:
+                        raise ValidationError(
+                            {
+                                "institution_id": "You are not enrolled in this institution."
+                            }
+                        )
+                except ValueError:
+                    raise ValidationError(
+                        {"institution_id": "Invalid UUID format for institution ID."}
+                    )
         return context
 
     def perform_create(self, serializer):
-        institution = InstitutionInfo.objects.filter(admin=self.request.user).first()
-        if not institution:
-            raise ValidationError("No institution found for this admin.")
-        serializer.save()
+        user = self.request.user
+        if user.is_institution:
+            institution = InstitutionInfo.objects.filter(admin=user).first()
+            if not institution:
+                raise ValidationError("No institution found for this admin.")
+            serializer.save()
+        elif user.is_teacher:
+            institution_id = self.request.query_params.get("institution_id")
+            if not institution_id:
+                raise ValidationError(
+                    {"institution_id": "Institution ID is required for teachers."}
+                )
+            try:
+                UUID(institution_id)
+            except ValueError:
+                raise ValidationError(
+                    {"institution_id": "Invalid UUID format for institution ID."}
+                )
+            institution = InstitutionInfo.objects.filter(id=institution_id).first()
+            if (
+                not institution
+                or not InstitutionMembership.objects.filter(
+                    user=user, institution=institution, role="teacher"
+                ).exists()
+            ):
+                raise ValidationError(
+                    {"institution_id": "You are not enrolled in this institution."}
+                )
+            unit = serializer.validated_data["unit"]
+            if not TeacherEnrollment.objects.filter(
+                user=user, subjects=unit.module.subject, is_active=True
+            ).exists():
+                raise ValidationError("You are not enrolled to teach this subject.")
+            if (
+                unit.module.subject.stream.curriculum_track.institution_info
+                != institution
+            ):
+                raise ValidationError(
+                    "Unit does not belong to the specified institution."
+                )
+            serializer.save()
 
 
 class MicroLessonViewSet(viewsets.ModelViewSet):
     serializer_class = MicroLessonSerializer
-    permission_classes = [IsAuthenticated, IsInstitutionAdmin]
+    permission_classes = [IsAuthenticated, IsInstitutionAdmin | IsTeacher]
 
     def get_queryset(self):
-        institution = InstitutionInfo.objects.filter(admin=self.request.user).first()
-        if not institution:
-            return MicroLesson.objects.none()
-        queryset = MicroLesson.objects.filter(
-            lesson__unit__module__subject__stream__curriculum_track__institution_info=institution
-        )
-        lesson_id = self.request.query_params.get("lessons")
-        if lesson_id:
-            try:
-                UUID(lesson_id)  # Validate UUID format
-                if not Lesson.objects.filter(
-                    id=lesson_id,
-                    unit__module__subject__stream__curriculum_track__institution_info=institution,
+        user = self.request.user
+        if user.is_institution:
+            institution = InstitutionInfo.objects.filter(admin=user).first()
+            if not institution:
+                return MicroLesson.objects.none()
+            return MicroLesson.objects.filter(
+                lesson__unit__module__subject__stream__curriculum_track__institution_info=institution
+            )
+        elif user.is_teacher:
+            institution_id = self.request.query_params.get("institution_id")
+            if institution_id:
+                try:
+                    UUID(institution_id)
+                except ValueError:
+                    raise ValidationError(
+                        {"institution_id": "Invalid UUID format for institution ID."}
+                    )
+                if not InstitutionMembership.objects.filter(
+                    user=user, institution__id=institution_id, role="teacher"
                 ).exists():
                     raise ValidationError(
-                        f"Lesson with ID {lesson_id} does not exist or does not belong to this institution."
+                        {"institution_id": "You are not enrolled in this institution."}
                     )
-                queryset = queryset.filter(lesson__id=lesson_id)
-            except ValueError:
-                raise ValidationError(f"Invalid UUID format for lesson ID: {lesson_id}")
-        return queryset
+                return MicroLesson.objects.filter(
+                    lesson__unit__module__subject__teacher_enrollments__user=user,
+                    lesson__unit__module__subject__teacher_enrollments__is_active=True,
+                    lesson__unit__module__subject__stream__curriculum_track__institution_info__id=institution_id,
+                    is_active=True,
+                ).distinct()
+            return MicroLesson.objects.filter(
+                lesson__unit__module__subject__teacher_enrollments__user=user,
+                lesson__unit__module__subject__teacher_enrollments__is_active=True,
+                is_active=True,
+            ).distinct()
+        return MicroLesson.objects.none()
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        institution = InstitutionInfo.objects.filter(admin=self.request.user).first()
-        if institution:
-            context["institution"] = institution
+        user = self.request.user
+        if user.is_institution:
+            institution = InstitutionInfo.objects.filter(admin=user).first()
+            if institution:
+                context["institution"] = institution
+        elif user.is_teacher:
+            institution_id = self.request.query_params.get("institution_id")
+            if institution_id:
+                try:
+                    UUID(institution_id)
+                    institution = InstitutionInfo.objects.filter(
+                        id=institution_id
+                    ).first()
+                    if (
+                        institution
+                        and InstitutionMembership.objects.filter(
+                            user=user, institution=institution, role="teacher"
+                        ).exists()
+                    ):
+                        context["institution"] = institution
+                    else:
+                        raise ValidationError(
+                            {
+                                "institution_id": "You are not enrolled in this institution."
+                            }
+                        )
+                except ValueError:
+                    raise ValidationError(
+                        {"institution_id": "Invalid UUID format for institution ID."}
+                    )
         return context
 
     def perform_create(self, serializer):
-        institution = InstitutionInfo.objects.filter(admin=self.request.user).first()
-        if not institution:
-            raise ValidationError("No institution found for this admin.")
-        serializer.save()
+        user = self.request.user
+        if user.is_institution:
+            institution = InstitutionInfo.objects.filter(admin=user).first()
+            if not institution:
+                raise ValidationError("No institution found for this admin.")
+            serializer.save()
+        elif user.is_teacher:
+            institution_id = self.request.query_params.get("institution_id")
+            if not institution_id:
+                raise ValidationError(
+                    {"institution_id": "Institution ID is required for teachers."}
+                )
+            try:
+                UUID(institution_id)
+            except ValueError:
+                raise ValidationError(
+                    {"institution_id": "Invalid UUID format for institution ID."}
+                )
+            institution = InstitutionInfo.objects.filter(id=institution_id).first()
+            if (
+                not institution
+                or not InstitutionMembership.objects.filter(
+                    user=user, institution=institution, role="teacher"
+                ).exists()
+            ):
+                raise ValidationError(
+                    {"institution_id": "You are not enrolled in this institution."}
+                )
+            lesson = serializer.validated_data["lesson"]
+            if not TeacherEnrollment.objects.filter(
+                user=user, subjects=lesson.unit.module.subject, is_active=True
+            ).exists():
+                raise ValidationError("You are not enrolled to teach this subject.")
+            if (
+                lesson.unit.module.subject.stream.curriculum_track.institution_info
+                != institution
+            ):
+                raise ValidationError(
+                    "Lesson does not belong to the specified institution."
+                )
+            serializer.save()
 
 
 class TeacherEnrollmentViewSet(viewsets.ModelViewSet):
