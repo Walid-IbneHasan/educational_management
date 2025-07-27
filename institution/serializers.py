@@ -1,3 +1,4 @@
+from uuid import UUID
 from rest_framework import serializers
 from user_management.models.authentication import InstitutionMembership
 from .models import *
@@ -379,14 +380,38 @@ class ModuleSerializer(serializers.ModelSerializer):
         institution = self.context.get("institution")
         subject = data.get("subject")
         title = data.get("title")
+        user = self.context["request"].user
         if not institution:
             raise serializers.ValidationError(
                 {"institution": "Institution context is required."}
             )
-        if subject.stream.curriculum_track.institution_info != institution:
-            raise serializers.ValidationError(
-                {"subject": "Subject does not belong to this institution."}
-            )
+        if user.is_institution:
+            if subject.stream.curriculum_track.institution_info != institution:
+                raise serializers.ValidationError(
+                    {"subject": "Subject does not belong to this institution."}
+                )
+        elif user.is_teacher:
+            institution_id = self.context["request"].query_params.get("institution_id")
+            if not institution_id:
+                raise serializers.ValidationError(
+                    {"institution_id": "Institution ID is required for teachers."}
+                )
+            try:
+                UUID(institution_id)
+            except ValueError:
+                raise serializers.ValidationError(
+                    {"institution_id": "Invalid UUID format for institution ID."}
+                )
+            if not TeacherEnrollment.objects.filter(
+                user=user, subjects=subject, is_active=True
+            ).exists():
+                raise serializers.ValidationError(
+                    {"subject": "You are not enrolled to teach this subject."}
+                )
+            if subject.stream.curriculum_track.institution_info != institution:
+                raise serializers.ValidationError(
+                    {"subject": "Subject does not belong to the specified institution."}
+                )
         if not title:
             raise serializers.ValidationError({"title": "Global module is required."})
         return data
@@ -419,14 +444,38 @@ class UnitSerializer(serializers.ModelSerializer):
         institution = self.context.get("institution")
         module = data.get("module")
         title = data.get("title")
+        user = self.context["request"].user
         if not institution:
             raise serializers.ValidationError(
                 {"institution": "Institution context is required."}
             )
-        if module.subject.stream.curriculum_track.institution_info != institution:
-            raise serializers.ValidationError(
-                {"module": "Module does not belong to this institution."}
-            )
+        if user.is_institution:
+            if module.subject.stream.curriculum_track.institution_info != institution:
+                raise serializers.ValidationError(
+                    {"module": "Module does not belong to this institution."}
+                )
+        elif user.is_teacher:
+            institution_id = self.context["request"].query_params.get("institution_id")
+            if not institution_id:
+                raise serializers.ValidationError(
+                    {"institution_id": "Institution ID is required for teachers."}
+                )
+            try:
+                UUID(institution_id)
+            except ValueError:
+                raise serializers.ValidationError(
+                    {"institution_id": "Invalid UUID format for institution ID."}
+                )
+            if not TeacherEnrollment.objects.filter(
+                user=user, subjects=module.subject, is_active=True
+            ).exists():
+                raise serializers.ValidationError(
+                    {"module": "You are not enrolled to teach this subject."}
+                )
+            if module.subject.stream.curriculum_track.institution_info != institution:
+                raise serializers.ValidationError(
+                    {"module": "Module does not belong to the specified institution."}
+                )
         if not title:
             raise serializers.ValidationError({"title": "Global unit is required."})
         return data
@@ -459,14 +508,44 @@ class LessonSerializer(serializers.ModelSerializer):
         institution = self.context.get("institution")
         unit = data.get("unit")
         title = data.get("title")
+        user = self.context["request"].user
         if not institution:
             raise serializers.ValidationError(
                 {"institution": "Institution context is required."}
             )
-        if unit.module.subject.stream.curriculum_track.institution_info != institution:
-            raise serializers.ValidationError(
-                {"unit": "Unit does not belong to this institution."}
-            )
+        if user.is_institution:
+            if (
+                unit.module.subject.stream.curriculum_track.institution_info
+                != institution
+            ):
+                raise serializers.ValidationError(
+                    {"unit": "Unit does not belong to this institution."}
+                )
+        elif user.is_teacher:
+            institution_id = self.context["request"].query_params.get("institution_id")
+            if not institution_id:
+                raise serializers.ValidationError(
+                    {"institution_id": "Institution ID is required for teachers."}
+                )
+            try:
+                UUID(institution_id)
+            except ValueError:
+                raise serializers.ValidationError(
+                    {"institution_id": "Invalid UUID format for institution ID."}
+                )
+            if not TeacherEnrollment.objects.filter(
+                user=user, subjects=unit.module.subject, is_active=True
+            ).exists():
+                raise serializers.ValidationError(
+                    {"unit": "You are not enrolled to teach this subject."}
+                )
+            if (
+                unit.module.subject.stream.curriculum_track.institution_info
+                != institution
+            ):
+                raise serializers.ValidationError(
+                    {"unit": "Unit does not belong to the specified institution."}
+                )
         if not title:
             raise serializers.ValidationError({"title": "Global lesson is required."})
         return data
@@ -499,17 +578,44 @@ class MicroLessonSerializer(serializers.ModelSerializer):
         institution = self.context.get("institution")
         lesson = data.get("lesson")
         title = data.get("title")
+        user = self.context["request"].user
         if not institution:
             raise serializers.ValidationError(
                 {"institution": "Institution context is required."}
             )
-        if (
-            lesson.unit.module.subject.stream.curriculum_track.institution_info
-            != institution
-        ):
-            raise serializers.ValidationError(
-                {"lesson": "Lesson does not belong to this institution."}
-            )
+        if user.is_institution:
+            if (
+                lesson.unit.module.subject.stream.curriculum_track.institution_info
+                != institution
+            ):
+                raise serializers.ValidationError(
+                    {"lesson": "Lesson does not belong to this institution."}
+                )
+        elif user.is_teacher:
+            institution_id = self.context["request"].query_params.get("institution_id")
+            if not institution_id:
+                raise serializers.ValidationError(
+                    {"institution_id": "Institution ID is required for teachers."}
+                )
+            try:
+                UUID(institution_id)
+            except ValueError:
+                raise serializers.ValidationError(
+                    {"institution_id": "Invalid UUID format for institution ID."}
+                )
+            if not TeacherEnrollment.objects.filter(
+                user=user, subjects=lesson.unit.module.subject, is_active=True
+            ).exists():
+                raise serializers.ValidationError(
+                    {"lesson": "You are not enrolled to teach this subject."}
+                )
+            if (
+                lesson.unit.module.subject.stream.curriculum_track.institution_info
+                != institution
+            ):
+                raise serializers.ValidationError(
+                    {"lesson": "Lesson does not belong to the specified institution."}
+                )
         if not title:
             raise serializers.ValidationError(
                 {"title": "Global micro lesson is required."}
