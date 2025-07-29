@@ -1,11 +1,10 @@
-from uuid import UUID
 from rest_framework import serializers
-from user_management.models.authentication import InstitutionMembership
 from user_management.serializers.authentication import UserSerializer
 from .models import Homework, HomeworkSubmission
 from institution.models import InstitutionInfo, CurriculumTrack, Section, Subject
+from user_management.models.authentication import InstitutionMembership
 from django.utils import timezone
-
+from uuid import UUID
 
 from django.contrib.auth import get_user_model
 
@@ -18,6 +17,15 @@ class HomeworkSerializer(serializers.ModelSerializer):
     )
     section = serializers.PrimaryKeyRelatedField(queryset=Section.objects.all())
     subject = serializers.PrimaryKeyRelatedField(queryset=Subject.objects.all())
+    curriculum_track_name = serializers.SlugRelatedField(
+        source="curriculum_track.name", slug_field="name", read_only=True
+    )  # Updated to access curriculum_track.name.name
+    section_name = serializers.SlugRelatedField(
+        source="section", slug_field="name", read_only=True
+    )
+    subject_name = serializers.SlugRelatedField(
+        source="subject.name", slug_field="name", read_only=True
+    )
 
     class Meta:
         model = Homework
@@ -25,8 +33,11 @@ class HomeworkSerializer(serializers.ModelSerializer):
             "id",
             "institution",
             "curriculum_track",
+            "curriculum_track_name",
             "section",
+            "section_name",
             "subject",
+            "subject_name",
             "title",
             "description",
             "image",
