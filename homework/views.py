@@ -29,6 +29,7 @@ class HomeworkViewSet(viewsets.ModelViewSet):
         user = self.request.user
         if user.is_teacher:
             institution_id = self.request.query_params.get("institution_id")
+            queryset = Homework.objects.filter(is_active=True)
             if institution_id:
                 try:
                     UUID(institution_id)
@@ -44,26 +45,30 @@ class HomeworkViewSet(viewsets.ModelViewSet):
                         {"error": "You are not enrolled in this institution."},
                         status=status.HTTP_403_FORBIDDEN,
                     )
-                return Homework.objects.filter(
-                    Q(created_by=user)
-                    | Q(
-                        institution__id=institution_id,
-                        curriculum_track__teacher_enrollments__user=user,
-                        section__teacher_enrollments__user=user,
-                        subject__teacher_enrollments__user=user,
-                    ),
-                    is_active=True,
-                ).distinct()
-            return Homework.objects.filter(
-                Q(created_by=user)
-                | Q(
-                    institution__teacher_enrollments__user=user,
-                    curriculum_track__teacher_enrollments__user=user,
-                    section__teacher_enrollments__user=user,
-                    subject__teacher_enrollments__user=user,
-                ),
-                is_active=True,
+                queryset = queryset.filter(institution__id=institution_id)
+            # Filter by teacher enrollment for section and subject
+            queryset = queryset.filter(
+                curriculum_track__teacher_enrollments__user=user,
+                section__teacher_enrollments__user=user,
+                subject__teacher_enrollments__user=user,
             ).distinct()
+            if not queryset.exists():
+                # Provide detailed error for debugging
+                error_details = {
+                    "detail": "No Homework matches the given query.",
+                    "debug_info": {
+                        "institution_id": institution_id,
+                        "user_phone": user.phone_number,
+                        "enrollment_check": "No active TeacherEnrollment found for this user in the specified institution, curriculum track, section, and subject.",
+                    },
+                }
+                if institution_id:
+                    error_details["debug_info"]["suggestion"] = (
+                        f"Verify TeacherEnrollment for user {user.phone_number} with institution_id={institution_id}, "
+                        "and ensure curriculum_track, section, and subject are correctly associated."
+                    )
+                return Response(error_details, status=status.HTTP_404_NOT_FOUND)
+            return queryset
         elif user.is_student:
             return Homework.objects.filter(
                 institution__student_enrollments__user=user,
