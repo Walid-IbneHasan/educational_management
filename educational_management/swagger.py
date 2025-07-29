@@ -1660,19 +1660,18 @@ schema_view = get_schema_view(
         ### Homework Workflow
         
         #### Creating Homework As a Teacher
-        - **Endpoint**: `POST /homework/homeworks/`
+        - **Endpoint**: `POST /homework/homeworks/?institution_id=33dcaa97-9d1d-4e64-a9ab-f6e9f7b05c67`
         - **Authentication**: `Authorization: Token <teacher_token>`
         - **Request Body**:
           ```json
           {
-              "curriculum_track": "8017b8b9-42bd-4605-ba34-9cbb4e68e8e7",
-              "section": "647ffc8c-3177-46ec-ac41-005b223f2f37",
-              "subject": "00268557-6e03-4233-95a8-3e82f54d7883",
-              "title": "English Homework 1",
-              "image:""   [OPTIONAL]
+              "curriculum_track": "7983545f-70f8-4cb5-a2f7-4741331f2c29",
+              "section": "f7a12204-7348-410c-9d08-dfeb403514ec",
+              "subject": "3f9f6a18-bc0d-41a8-8354-c9e752b88e5d",
+              "title": "Math Homework",
+              "image": null,  
               "description": "Read Chapter 1 and answer questions.",
-              "due_date": "2025-06-01T23:59:00Z"
-
+              "due_date": "2025-07-30T23:59:00Z"
           }
           ```
         - **Response** (201 Created):
@@ -1692,8 +1691,17 @@ schema_view = get_schema_view(
               "is_active": true
           }
           ```
+        #### GET HOMEWORKS FOR A SECTION AND A SUBJECT
+        - **Endpoint**: `GET /homework/homeworks/assigned/<section_id>/<subject_id>/?institution_id=<institution_uuid>`
+        
+        
+        #### PATCH THE HOMEWORK
+        - **Endpoint**: `PATCH /homework/homeworks/<id>/?institution_id=<institution_uuid>`
+        - **Authentication**: `Authorization: Token <teacher_token>`
+        
+        
         #### Submitting Homework As a Teacher. Teacher will just mark whether a student has submitted the homework or not.
-        - **Endpoint**: `POST /homework/submissions/`
+        - **Endpoint**: `POST /homework/submissions/?institution_id=33dcaa97-9d1d-4e64-a9ab-f6e9f7b05c67`
         - **Authentication**: `Authorization: Token <teacher_token>`
         - **Request Body**:
           ```json
@@ -1715,7 +1723,7 @@ schema_view = get_schema_view(
           }
           ```
         #### Homework Submission Statistics For Teacher
-        - **Endpoint**: `GET /homework/submissions/statistics/<section_id>/<subject_id>/`
+        - **Endpoint**: `GET /homework/submissions/statistics/<section_id>/<subject_id>/?institution_id=<institution_uuid>`
         - **Authentication**: `Authorization: Token <teacher_token>`  
         - **NOTE**: This endpoint is used to see the number of homeworks submitted and not submitted by each student in a section for a subject.
         - **Response** (200 OK):

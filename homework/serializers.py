@@ -1,4 +1,6 @@
+from uuid import UUID
 from rest_framework import serializers
+from user_management.models.authentication import InstitutionMembership
 from user_management.serializers.authentication import UserSerializer
 from .models import Homework, HomeworkSubmission
 from institution.models import InstitutionInfo, CurriculumTrack, Section, Subject
@@ -41,20 +43,65 @@ class HomeworkSerializer(serializers.ModelSerializer):
         section = data.get("section")
         subject = data.get("subject")
         due_date = data.get("due_date")
+        user = request.user
 
-        # Validate teacher role
-        if not request.user.is_teacher:
+        if user.is_institution:
+            institution = self.context.get("institution")
+            if not institution:
+                raise serializers.ValidationError(
+                    {"institution": "Institution context is required for admins."}
+                )
+            if curriculum_track.institution_info != institution:
+                raise serializers.ValidationError(
+                    {
+                        "curriculum_track": "Curriculum track does not belong to your institution."
+                    }
+                )
+        elif user.is_teacher:
+            institution_id = request.query_params.get("institution_id")
+            if not institution_id:
+                raise serializers.ValidationError(
+                    {"institution_id": "Institution ID is required for teachers."}
+                )
+            try:
+                UUID(institution_id)
+            except ValueError:
+                raise serializers.ValidationError(
+                    {"institution_id": "Invalid UUID format for institution ID."}
+                )
+            institution = InstitutionInfo.objects.filter(id=institution_id).first()
+            if (
+                not institution
+                or not InstitutionMembership.objects.filter(
+                    user=user, institution=institution, role="teacher"
+                ).exists()
+            ):
+                raise serializers.ValidationError(
+                    {"institution_id": "You are not enrolled in this institution."}
+                )
+            if curriculum_track.institution_info != institution:
+                raise serializers.ValidationError(
+                    {
+                        "curriculum_track": "Curriculum track does not belong to the specified institution."
+                    }
+                )
+            if not request.user.teacher_enrollments.filter(
+                institution=institution,
+                curriculum_track=curriculum_track,
+                section=section,
+                subjects=subject,
+                is_active=True,
+            ).exists():
+                raise serializers.ValidationError(
+                    {
+                        "non_field_errors": "You are not enrolled to teach this subject in this section for the specified institution."
+                    }
+                )
+        else:
             raise serializers.ValidationError(
-                {"non_field_errors": "Only teachers can create or update homework."}
-            )
-
-        # Validate institution
-        institution = InstitutionInfo.objects.filter(
-            institution_curriculum_tracks=curriculum_track
-        ).first()
-        if not institution:
-            raise serializers.ValidationError(
-                {"curriculum_track": "Invalid curriculum track."}
+                {
+                    "non_field_errors": "Only teachers or institution admins can create or update homework."
+                }
             )
 
         # Validate section belongs to curriculum track
@@ -73,19 +120,6 @@ class HomeworkSerializer(serializers.ModelSerializer):
                 }
             )
 
-        # Validate teacher enrollment
-        if not request.user.teacher_enrollments.filter(
-            institution=institution,
-            curriculum_track=curriculum_track,
-            section=section,
-            subjects=subject,
-        ).exists():
-            raise serializers.ValidationError(
-                {
-                    "non_field_errors": "You are not enrolled to teach this subject in this section."
-                }
-            )
-
         # Validate due date
         if due_date <= timezone.now():
             raise serializers.ValidationError(
@@ -96,9 +130,11 @@ class HomeworkSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         curriculum_track = validated_data.get("curriculum_track")
-        institution = InstitutionInfo.objects.filter(
-            institution_curriculum_tracks=curriculum_track
-        ).first()
+        institution = self.context.get("institution")
+        if not institution:
+            raise serializers.ValidationError(
+                {"institution": "Institution context is required."}
+            )
         validated_data["institution"] = institution
         validated_data["created_by"] = self.context["request"].user
         return Homework.objects.create(**validated_data)
@@ -131,23 +167,62 @@ class HomeworkSubmissionSerializer(serializers.ModelSerializer):
         homework = data.get("homework")
         student = data.get("student")
         submitted = data.get("submitted", False)
+        user = request.user
 
-        # Validate teacher role
-        if not request.user.is_teacher:
-            raise serializers.ValidationError(
-                {"non_field_errors": "Only teachers can update submissions."}
-            )
-
-        # Validate teacher is assigned to homework's section and subject
-        if not request.user.teacher_enrollments.filter(
-            institution=homework.institution,
-            curriculum_track=homework.curriculum_track,
-            section=homework.section,
-            subjects=homework.subject,
-        ).exists():
+        if user.is_institution:
+            institution = self.context.get("institution")
+            if not institution:
+                raise serializers.ValidationError(
+                    {"institution": "Institution context is required for admins."}
+                )
+            if homework.institution != institution:
+                raise serializers.ValidationError(
+                    {"homework": "Homework does not belong to your institution."}
+                )
+        elif user.is_teacher:
+            institution_id = request.query_params.get("institution_id")
+            if not institution_id:
+                raise serializers.ValidationError(
+                    {"institution_id": "Institution ID is required for teachers."}
+                )
+            try:
+                UUID(institution_id)
+            except ValueError:
+                raise serializers.ValidationError(
+                    {"institution_id": "Invalid UUID format for institution ID."}
+                )
+            institution = InstitutionInfo.objects.filter(id=institution_id).first()
+            if (
+                not institution
+                or not InstitutionMembership.objects.filter(
+                    user=user, institution=institution, role="teacher"
+                ).exists()
+            ):
+                raise serializers.ValidationError(
+                    {"institution_id": "You are not enrolled in this institution."}
+                )
+            if homework.institution != institution:
+                raise serializers.ValidationError(
+                    {
+                        "homework": "Homework does not belong to the specified institution."
+                    }
+                )
+            if not request.user.teacher_enrollments.filter(
+                institution=institution,
+                curriculum_track=homework.curriculum_track,
+                section=homework.section,
+                subjects=homework.subject,
+                is_active=True,
+            ).exists():
+                raise serializers.ValidationError(
+                    {
+                        "non_field_errors": "You are not authorized to update submissions for this homework."
+                    }
+                )
+        else:
             raise serializers.ValidationError(
                 {
-                    "non_field_errors": "You are not authorized to update submissions for this homework."
+                    "non_field_errors": "Only teachers or institution admins can update submissions."
                 }
             )
 
