@@ -1,4 +1,13 @@
-from institution.models import CurriculumTrack, InstitutionInfo, Lesson, MicroLesson, Module, Section, Subject, Unit
+from institution.models import (
+    CurriculumTrack,
+    InstitutionInfo,
+    Lesson,
+    MicroLesson,
+    Module,
+    Section,
+    Subject,
+    Unit,
+)
 from rest_framework import serializers
 from .models import Syllabus
 from institution.serializers import (
@@ -11,6 +20,8 @@ from institution.serializers import (
     MicroLessonSerializer,
 )
 from user_management.serializers.authentication import UserSerializer
+from user_management.models.authentication import InstitutionMembership
+from uuid import UUID
 
 
 class SyllabusSerializer(serializers.ModelSerializer):
@@ -32,16 +43,21 @@ class SyllabusSerializer(serializers.ModelSerializer):
         queryset=MicroLesson.objects.all(), many=True, required=False
     )
     created_by = UserSerializer(read_only=True)
-    curriculum_track_detail = CurriculumTrackSerializer(
-        source="curriculum_track", read_only=True
-    )
-    section_detail = SectionSerializer(source="section", read_only=True)
-    subject_detail = SubjectSerializer(source="subject", read_only=True)
+
     modules_detail = ModuleSerializer(source="modules", many=True, read_only=True)
     units_detail = UnitSerializer(source="units", many=True, read_only=True)
     lessons_detail = LessonSerializer(source="lessons", many=True, read_only=True)
     micro_lessons_detail = MicroLessonSerializer(
         source="micro_lessons", many=True, read_only=True
+    )
+    curriculum_track_name = serializers.SlugRelatedField(
+        source="curriculum_track.name", slug_field="name", read_only=True
+    )
+    section_name = serializers.SlugRelatedField(
+        source="section", slug_field="name", read_only=True
+    )
+    subject_name = serializers.SlugRelatedField(
+        source="subject.name", slug_field="name", read_only=True
     )
 
     class Meta:
@@ -50,11 +66,11 @@ class SyllabusSerializer(serializers.ModelSerializer):
             "id",
             "institution",
             "curriculum_track",
-            "curriculum_track_detail",
+            "curriculum_track_name",
             "section",
-            "section_detail",
+            "section_name",
             "subject",
-            "subject_detail",
+            "subject_name",
             "title",
             "purpose",
             "modules",
@@ -87,20 +103,44 @@ class SyllabusSerializer(serializers.ModelSerializer):
         units = data.get("units", [])
         lessons = data.get("lessons", [])
         micro_lessons = data.get("micro_lessons", [])
+        user = request.user
 
-        # Validate teacher enrollment
-        if not request.user.is_teacher:
+        # Validate user is a teacher
+        if not user.is_teacher:
             raise serializers.ValidationError(
                 {"non_field_errors": "Only teachers can create or update syllabi."}
             )
 
-        # Fix: Use institution_curriculum_tracks instead of curriculum_tracks
-        institution = InstitutionInfo.objects.filter(
-            institution_curriculum_tracks=curriculum_track
-        ).first()
+        # Validate institution_id for teachers
+        institution_id = request.query_params.get("institution_id")
+        if not institution_id:
+            raise serializers.ValidationError(
+                {"institution_id": "Institution ID is required for teachers."}
+            )
+        try:
+            UUID(institution_id)
+        except ValueError:
+            raise serializers.ValidationError(
+                {"institution_id": "Invalid UUID format for institution ID."}
+            )
+        institution = InstitutionInfo.objects.filter(id=institution_id).first()
         if not institution:
             raise serializers.ValidationError(
-                {"curriculum_track": "Invalid curriculum track."}
+                {"institution_id": "Institution does not exist."}
+            )
+        if not InstitutionMembership.objects.filter(
+            user=user, institution=institution, role="teacher"
+        ).exists():
+            raise serializers.ValidationError(
+                {"institution_id": "You are not enrolled in this institution."}
+            )
+
+        # Validate curriculum track belongs to institution
+        if curriculum_track.institution_info != institution:
+            raise serializers.ValidationError(
+                {
+                    "curriculum_track": "Curriculum track does not belong to the specified institution."
+                }
             )
 
         # Validate section belongs to curriculum track
@@ -120,15 +160,16 @@ class SyllabusSerializer(serializers.ModelSerializer):
             )
 
         # Validate teacher is enrolled
-        if not request.user.teacher_enrollments.filter(
+        if not user.teacher_enrollments.filter(
             institution=institution,
             curriculum_track=curriculum_track,
             section=section,
             subjects=subject,
+            is_active=True,
         ).exists():
             raise serializers.ValidationError(
                 {
-                    "non_field_errors": "You are not enrolled to teach this subject in this section."
+                    "non_field_errors": "You are not enrolled to teach this subject in this section for the specified institution."
                 }
             )
 
@@ -173,11 +214,13 @@ class SyllabusSerializer(serializers.ModelSerializer):
         units = validated_data.pop("units", [])
         lessons = validated_data.pop("lessons", [])
         micro_lessons = validated_data.pop("micro_lessons", [])
-        curriculum_track = validated_data.get("curriculum_track")
-        # Fix: Use institution_curriculum_tracks for consistency
         institution = InstitutionInfo.objects.filter(
-            institution_curriculum_tracks=curriculum_track
+            id=self.context["request"].query_params.get("institution_id")
         ).first()
+        if not institution:
+            raise serializers.ValidationError(
+                {"institution": "Institution context is required."}
+            )
         validated_data["institution"] = institution
         validated_data["created_by"] = self.context["request"].user
         syllabus = Syllabus.objects.create(**validated_data)

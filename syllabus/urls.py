@@ -1,19 +1,12 @@
-from django.urls import path
-from syllabus.views import SyllabusViewSet
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
+from .views import SyllabusViewSet
 
 app_name = "syllabus"
 
+router = DefaultRouter()
+router.register(r"syllabus", SyllabusViewSet, basename="syllabus")
+
 urlpatterns = [
-    path(
-        "",
-        SyllabusViewSet.as_view({"get": "list", "post": "create"}),
-        name="syllabus-list",
-    ),
-    path(
-        "<uuid:pk>/",
-        SyllabusViewSet.as_view(
-            {"get": "retrieve", "patch": "partial_update", "delete": "destroy"}
-        ),
-        name="syllabus-detail",
-    ),
+    path("", include(router.urls)),
 ]
