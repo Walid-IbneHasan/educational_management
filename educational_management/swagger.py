@@ -1641,7 +1641,7 @@ schema_view = get_schema_view(
         ### Syllabus Workflow
         
         #### Creating Syllabus
-        - **Endpoint**: `POST /syllabus/`
+        - **Endpoint**: `POST http://127.0.0.1:8000/syllabus/syllabus/?institution_id=33dcaa97-9d1d-4e64-a9ab-f6e9f7b05c67`
         - **Authentication**: `Authorization: Token <teacher_token>`
         - **Request Body**:
           ```json
@@ -1657,6 +1657,10 @@ schema_view = get_schema_view(
               "micro_lessons": [],
           }
           ```
+        ##### GET SYLLABUS FOR A SUBJECT <teacher_token>
+        - **Endpoint**: `GET syllabus/syllabus/by-subject/3f9f6a18-bc0d-41a8-8354-c9e752b88e5d/?institution_id=33dcaa97-9d1d-4e64-a9ab-f6e9f7b05c67`
+        
+        
         ### Homework Workflow
         
         #### Creating Homework As a Teacher
