@@ -1726,6 +1726,26 @@ schema_view = get_schema_view(
               "updated_at": "2025-05-28T06:24:58.838234Z"
           }
           ```
+        #### Number of Homework Submissions For a Section and a Subject
+        - **Endpoint**: `/homework/homeworks/submissions/<homework_id>/?institution_id=33dcaa97-9d1d-4e64-a9ab-f6e9f7b05c67`
+        - **Authentication**: `Authorization: Token <teacher_token>`
+        - **Response** (200 OK):
+          ```json
+          {
+              "homework_id": "9eff4e74-2105-41bb-ac50-fb9897093de8",
+              "total_submissions": 1,
+              "submissions": [
+                  {
+                      "id": "729382eb-d56f-4998-baa2-cad54ac5d8dd",
+                      "homework": "9eff4e74-2105-41bb-ac50-fb9897093de8",
+                      "student": "91140d9e-6fc6-42db-b7e7-c7e61b129bda",
+                      "submitted": true,
+                      "submission_date": "2025-08-03T07:37:31.004623Z",
+                      "updated_at": "2025-08-03T07:37:31.005650Z"
+                  }
+              ]
+          }
+          ```
         #### Homework Submission Statistics For Teacher
         - **Endpoint**: `GET /homework/submissions/statistics/<section_id>/<subject_id>/?institution_id=<institution_uuid>`
         - **Authentication**: `Authorization: Token <teacher_token>`  

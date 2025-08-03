@@ -206,6 +206,99 @@ class HomeworkViewSet(viewsets.ModelViewSet):
     @action(
         detail=False,
         methods=["get"],
+        url_path="submissions/(?P<homework_id>[^/.]+)",
+    )
+    def homework_submissions(self, request, homework_id=None):
+        user = request.user
+        try:
+            UUID(homework_id)
+        except ValueError:
+            raise ValidationError(
+                {"homework_id": "Invalid UUID format for homework ID."}
+            )
+
+        try:
+            homework = Homework.objects.get(id=homework_id, is_active=True)
+        except Homework.DoesNotExist:
+            return Response(
+                {"error": "Homework does not exist."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if user.is_teacher:
+            institution_id = request.query_params.get("institution_id")
+            if not institution_id:
+                raise ValidationError(
+                    {"institution_id": "Institution ID is required for teachers."}
+                )
+            try:
+                UUID(institution_id)
+            except ValueError:
+                raise ValidationError(
+                    {"institution_id": "Invalid UUID format for institution ID."}
+                )
+            institution = InstitutionInfo.objects.filter(id=institution_id).first()
+            if not institution:
+                raise ValidationError({"institution_id": "Institution does not exist."})
+            if not InstitutionMembership.objects.filter(
+                user=user, institution=institution, role="teacher"
+            ).exists():
+                raise ValidationError(
+                    {"institution_id": "You are not enrolled in this institution."}
+                )
+            if homework.institution != institution:
+                return Response(
+                    {"error": "Homework does not belong to the specified institution."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            if not user.teacher_enrollments.filter(
+                institution=institution,
+                curriculum_track=homework.curriculum_track,
+                section=homework.section,
+                subjects=homework.subject,
+                is_active=True,
+            ).exists():
+                return Response(
+                    {
+                        "error": "You are not enrolled to teach this homework's subject in this section."
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        elif user.is_institution:
+            institution = InstitutionInfo.objects.filter(admin=user).first()
+            if not institution:
+                return Response(
+                    {"error": "No institution found for this admin."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            if homework.institution != institution:
+                return Response(
+                    {"error": "Homework does not belong to your institution."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        else:
+            return Response(
+                {"error": "Only teachers or institution admins can view submissions."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        submissions = HomeworkSubmission.objects.filter(
+            homework=homework, submitted=True
+        )
+        total_submissions = submissions.count()
+        serializer = HomeworkSubmissionSerializer(submissions, many=True)
+
+        return Response(
+            {
+                "homework_id": homework_id,
+                "total_submissions": total_submissions,
+                "submissions": serializer.data,
+            }
+        )
+
+    @action(
+        detail=False,
+        methods=["get"],
         url_path="assigned/(?P<section_id>[^/.]+)/(?P<subject_id>[^/.]+)",
     )
     def assigned(self, request, section_id=None, subject_id=None):
