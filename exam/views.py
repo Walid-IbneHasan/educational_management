@@ -3,10 +3,13 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
+
+from user_management.models.authentication import InstitutionMembership
 from .models import Exam, ExamMark
 from .serializers import ExamSerializer, ExamMarkSerializer
 from institution.models import InstitutionInfo, StudentEnrollment, TeacherEnrollment
 import logging
+from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
@@ -340,3 +343,57 @@ class ExamMarkDetailView(APIView):
                 {"error": "Internal server error"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class TeacherCreatedExamsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if not user.is_teacher:
+            logger.warning(
+                f"Non-teacher user {user.id} attempted to access created exams"
+            )
+            return Response(
+                {"error": "Only teachers can view created exams"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        institution_id = request.query_params.get("institution_id")
+        if not institution_id:
+            logger.error(f"Institution ID required for teacher {user.id}")
+            return Response(
+                {"institution_id": "Institution ID is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            UUID(institution_id)
+        except ValueError:
+            logger.error(f"Invalid UUID format for institution_id: {institution_id}")
+            return Response(
+                {"institution_id": "Invalid UUID format for institution ID."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        institution = InstitutionInfo.objects.filter(id=institution_id).first()
+        if not institution:
+            logger.error(f"Institution {institution_id} not found")
+            return Response(
+                {"institution_id": "Institution does not exist."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not InstitutionMembership.objects.filter(
+            user=user, institution=institution, role="teacher"
+        ).exists():
+            logger.error(
+                f"Teacher {user.id} not enrolled in institution {institution_id}"
+            )
+            return Response(
+                {"institution_id": "You are not enrolled in this institution."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        queryset = Exam.objects.filter(
+            curriculum_track__institution_info=institution,
+            created_by=user,
+            is_active=True,
+        )
+        serializer = ExamSerializer(queryset, many=True)
+        return Response(serializer.data)

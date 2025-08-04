@@ -1695,6 +1695,11 @@ schema_view = get_schema_view(
               "is_active": true
           }
           ```
+          
+        #### GET ALL THE HOMEWORK CREATED BY A TEACHER
+        - **Endpoint**: `GET homework/homeworks/created-by-institution/?institution_id=33dcaa97-9d1d-4e64-a9ab-f6e9f7b05c67`
+        
+        
         #### GET HOMEWORKS FOR A SECTION AND A SUBJECT
         - **Endpoint**: `GET /homework/homeworks/assigned/<section_id>/<subject_id>/?institution_id=<institution_uuid>`
         
@@ -1726,6 +1731,9 @@ schema_view = get_schema_view(
               "updated_at": "2025-05-28T06:24:58.838234Z"
           }
           ```
+        
+        
+        
         #### Number of Homework Submissions For a Section and a Subject
         - **Endpoint**: `/homework/homeworks/submissions/<homework_id>/?institution_id=33dcaa97-9d1d-4e64-a9ab-f6e9f7b05c67`
         - **Authentication**: `Authorization: Token <teacher_token>`
@@ -1815,6 +1823,10 @@ schema_view = get_schema_view(
               "is_active": true
           }
           ```
+          
+          #### GET ALL THE EXAMS CREATED BY A TEACHER
+          - **Endpoint**: `/exam/created-exams/?institution_id=33dcaa97-9d1d-4e64-a9ab-f6e9f7b05c67`
+          
           
           #### Assign Exam Marks to Students
           - **Endpoint**: `POST /exam/marks/`
