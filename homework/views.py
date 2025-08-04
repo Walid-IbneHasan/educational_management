@@ -296,6 +296,64 @@ class HomeworkViewSet(viewsets.ModelViewSet):
             }
         )
 
+    # Returns all the homeworks created by a teacher under a specific institution.
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="created-by-institution",
+    )
+    def created_by_institution(self, request):
+        user = self.request.user
+        institution_id = request.query_params.get("institution_id")
+
+        if user.is_teacher:
+            if not institution_id:
+                raise ValidationError(
+                    {"institution_id": "Institution ID is required for teachers."}
+                )
+            try:
+                UUID(institution_id)
+            except ValueError:
+                raise ValidationError(
+                    {"institution_id": "Invalid UUID format for institution ID."}
+                )
+            institution = InstitutionInfo.objects.filter(id=institution_id).first()
+            if not institution:
+                raise ValidationError({"institution_id": "Institution does not exist."})
+            if not InstitutionMembership.objects.filter(
+                user=user, institution=institution, role="teacher"
+            ).exists():
+                raise ValidationError(
+                    {"institution_id": "You are not enrolled in this institution."}
+                )
+            queryset = Homework.objects.filter(
+                institution=institution,
+                created_by=user,
+                is_active=True,
+            )
+        elif user.is_institution:
+            institution = InstitutionInfo.objects.filter(admin=user).first()
+            if not institution:
+                return Response(
+                    {"error": "No institution found for this admin."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            queryset = Homework.objects.filter(
+                institution=institution,
+                created_by=user,
+                is_active=True,
+            )
+        else:
+            return Response(
+                {
+                    "error": "Only teachers or institution admins can view created homework."
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
     @action(
         detail=False,
         methods=["get"],
