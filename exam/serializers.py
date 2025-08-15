@@ -212,3 +212,38 @@ class ExamMarkSerializer(serializers.ModelSerializer):
             student=student,
             **validated_data,
         )
+
+
+class ExamMarkByExamSerializer(serializers.ModelSerializer):
+    student_id = serializers.UUIDField(source="student.id", read_only=True)
+    student_name = serializers.CharField(source="student.first_name", read_only=True)
+    exam_title = serializers.CharField(source="exam.title", read_only=True)
+    curriculum_track_id = serializers.UUIDField(
+        source="exam.curriculum_track.id", read_only=True
+    )
+    curriculum_track_name = serializers.CharField(
+        source="exam.curriculum_track.name.name", read_only=True
+    )
+    section_id = serializers.UUIDField(source="exam.section.id", read_only=True)
+    section_name = serializers.CharField(source="exam.section.name", read_only=True)
+    subject_id = serializers.UUIDField(source="exam.subject.id", read_only=True)
+    subject_name = serializers.CharField(
+        source="exam.subject.name.name", read_only=True
+    )
+
+    class Meta:
+        model = ExamMark
+        fields = [
+            "id",
+            "student_id",
+            "student_name",
+            "exam_title",
+            "curriculum_track_id",
+            "curriculum_track_name",
+            "section_id",
+            "section_name",
+            "subject_id",
+            "subject_name",
+            "marks_obtained",
+            "remarks",
+        ]

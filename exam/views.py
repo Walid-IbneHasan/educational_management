@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 
 from user_management.models.authentication import InstitutionMembership
 from .models import Exam, ExamMark
-from .serializers import ExamSerializer, ExamMarkSerializer
+from .serializers import ExamSerializer, ExamMarkSerializer, ExamMarkByExamSerializer
 from institution.models import InstitutionInfo, StudentEnrollment, TeacherEnrollment
 import logging
 from uuid import UUID
@@ -434,7 +434,7 @@ class ExamMarksByExamView(APIView):
                         status=status.HTTP_403_FORBIDDEN,
                     )
                 queryset = ExamMark.objects.filter(exam=exam)
-                serializer = ExamMarkSerializer(queryset, many=True)
+                serializer = ExamMarkByExamSerializer(queryset, many=True)
                 return Response(serializer.data)
             elif user.is_student:
                 mark = ExamMark.objects.filter(exam=exam, student=user).first()
@@ -443,7 +443,7 @@ class ExamMarksByExamView(APIView):
                         {"error": "No mark found for this exam."},
                         status=status.HTTP_404_NOT_FOUND,
                     )
-                serializer = ExamMarkSerializer(mark)
+                serializer = ExamMarkByExamSerializer(mark)
                 return Response(serializer.data)
             else:
                 return Response(
