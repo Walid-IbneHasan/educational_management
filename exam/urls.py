@@ -15,4 +15,9 @@ urlpatterns = [
     path(
         "marks/<uuid:pk>/", views.ExamMarkDetailView.as_view(), name="exam-mark-detail"
     ),
+    path(
+        "marks/by-exam/<uuid:exam_id>/",
+        views.ExamMarksByExamView.as_view(),
+        name="exam-marks-by-exam",
+    ),
 ]

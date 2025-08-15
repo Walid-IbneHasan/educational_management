@@ -1851,6 +1851,9 @@ schema_view = get_schema_view(
           
           #### Get Exam Marks of all the students in a Section for a Subject
           - **Endpoint**: `GET exam/marks/?section_id=<section_id>&subject_id=<subject_id>`
+          
+          #### Get Exam Mark of a student on a specific Exam.
+          - **Endpoint**: `GET /exam/marks/by-exam/<exam_id>/?institution_id=<institution_id>`
         
         
           ### Result Workflow
