@@ -397,3 +397,62 @@ class TeacherCreatedExamsView(APIView):
         )
         serializer = ExamSerializer(queryset, many=True)
         return Response(serializer.data)
+
+
+class ExamMarksByExamView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, exam_id):
+        try:
+            exam = get_object_or_404(Exam, pk=exam_id)
+            user = request.user
+            institution_id = request.query_params.get("institution_id")
+
+            if user.is_teacher:
+                if not institution_id:
+                    return Response(
+                        {"institution_id": "Institution ID is required for teachers."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                try:
+                    UUID(institution_id)
+                except ValueError:
+                    return Response(
+                        {"institution_id": "Invalid UUID format for institution ID."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                institution = get_object_or_404(InstitutionInfo, pk=institution_id)
+                if not TeacherEnrollment.objects.filter(
+                    user=user,
+                    curriculum_track=exam.curriculum_track,
+                    section=exam.section,
+                    subjects=exam.subject,
+                    institution=institution,
+                ).exists():
+                    return Response(
+                        {"error": "You are not authorized for this exam."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+                queryset = ExamMark.objects.filter(exam=exam)
+                serializer = ExamMarkSerializer(queryset, many=True)
+                return Response(serializer.data)
+            elif user.is_student:
+                mark = ExamMark.objects.filter(exam=exam, student=user).first()
+                if not mark:
+                    return Response(
+                        {"error": "No mark found for this exam."},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+                serializer = ExamMarkSerializer(mark)
+                return Response(serializer.data)
+            else:
+                return Response(
+                    {"error": "Invalid user role"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        except Exception as e:
+            logger.error(f"Error fetching exam marks: {str(e)}")
+            return Response(
+                {"error": "Internal server error"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
